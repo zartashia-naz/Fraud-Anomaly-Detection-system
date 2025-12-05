@@ -13,3 +13,6 @@ def get_client_ip(request: Request) -> str:
         ip = request.client.host
 
     return ip
+
+
+
