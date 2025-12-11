@@ -1,3 +1,28 @@
+# from fastapi import APIRouter, HTTPException, Depends
+# from app.schemas.user_schema import UserSignup, UserLogin, TokenResponse
+# from app.core.security import hash_password, verify_password, create_access_token
+# from app.db.mongodb import get_database
+
+# router = APIRouter()
+
+# @router.post("/signup")
+# async def signup(user: UserSignup, db=Depends(get_database)):
+
+#     existing_user = await db["users"].find_one({"email": user.email})
+#     if existing_user:
+#         raise HTTPException(status_code=400, detail="Email already registered")
+
+#     user_data = user.model_dump()
+#     user_data["password"] = hash_password(user.password)
+
+#     result = await db["users"].insert_one(user_data)
+
+#     return {
+#         "status": "success",
+#         "message": "User registered successfully",
+#         "user_id": str(result.inserted_id)
+#     }
+
 from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.user_schema import UserSignup, UserLogin, TokenResponse
 from app.core.security import hash_password, verify_password, create_access_token
@@ -8,18 +33,18 @@ router = APIRouter()
 @router.post("/signup")
 async def signup(user: UserSignup, db=Depends(get_database)):
 
-    existing_user = await db["users"].find_one({"email": user.email})
-    if existing_user:
+    exists = await db["users"].find_one({"email": user.email})
+    if exists:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user_data = user.model_dump()
-    user_data["password"] = hash_password(user.password)
+    new_user = user.model_dump(by_alias=False)
+    new_user["password"] = hash_password(user.password)
 
-    result = await db["users"].insert_one(user_data)
+    result = await db["users"].insert_one(new_user)
 
     return {
         "status": "success",
-        "message": "User registered successfully",
+        "message": "Account created successfully",
         "user_id": str(result.inserted_id)
     }
 
