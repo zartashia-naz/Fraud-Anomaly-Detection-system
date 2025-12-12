@@ -30,7 +30,8 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
 from fastapi import HTTPException, status
-
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = "this_is_my_semester_project"
@@ -83,3 +84,22 @@ def decode_access_token(token: str):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing"
+        )
+
+    decoded = decode_access_token(token)
+
+    # Validate token payload
+    if "id" not in decoded:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload"
+        )
+
+    return decoded

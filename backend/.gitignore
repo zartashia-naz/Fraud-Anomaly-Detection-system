@@ -100,3 +100,6 @@ _build/
 *.orig
 # Windows trash
 $RECYCLE.BIN/
+
+__pycache__/
+*.pyc
