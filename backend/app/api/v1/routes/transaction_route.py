@@ -8,20 +8,23 @@ from app.utils.ip_utils import get_client_ip
 from app.utils.device_utils import get_device_id
 from app.api.v1.routes.anomaly_route import handle_anomaly
 from app.core.dsa.redis_dsa import push_recent_txn
+from app.core.auth import get_current_user  # <-- JWT token
+# or: from app.api.v1.routes.auth_route import get_current_user
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
+
 # -----------------------------------------------------------
-# CREATE TRANSACTION
+# CREATE TRANSACTION USING JWT TOKEN
 # -----------------------------------------------------------
 @router.post("")
 async def create_transaction(
     request: Request,
     data: TransactionCreate,
     db=Depends(get_database),
-    current_user={"id": "test_user_123"}
+    current_user=Depends(get_current_user)   # <-- TOKEN REQUIRED
 ):
-    user_id = current_user["id"]
+    user_id = current_user["id"]  # <- Extract from token
 
     ip_address = get_client_ip(request)
     device_id = get_device_id(request)
@@ -41,13 +44,12 @@ async def create_transaction(
         if previous_txn_date else None
     )
 
-    # UPDATED: Use "category"
     merchant_id = f"MCT-{data.category[:3].upper()}-{user_id[:4]}"
 
     txn = TransactionModel(
         user_id=user_id,
         amount=data.amount,
-        category=data.category,           # UPDATED
+        category=data.category,
         description=data.description,
         ip=ip_address,
         device_id=device_id,
@@ -69,14 +71,15 @@ async def create_transaction(
 
     return {"message": "Transaction added", "data": txn.model_dump(mode="json")}
 
+
 # -----------------------------------------------------------
-# GET TRANSACTIONS (WITH FILTERS)
+# GET TRANSACTIONS USING JWT TOKEN
 # -----------------------------------------------------------
 @router.get("")
 async def get_user_transactions(
     request: Request,
     db=Depends(get_database),
-    current_user={"id": "test_user_123"},
+    current_user=Depends(get_current_user),   # <-- TOKEN REQUIRED
     from_dt: str | None = None,
     to_dt: str | None = None,
     sort_by: str = "transaction_date",
@@ -86,40 +89,4 @@ async def get_user_transactions(
     category: str | None = None,
     status: str | None = None,
 ):
-    user_id = current_user["id"]
-
-    q = {"user_id": user_id}
-
-    # ---- DATE FILTER ----
-    if from_dt or to_dt:
-        q["transaction_date"] = {}
-        if from_dt:
-            q["transaction_date"]["$gte"] = datetime.fromisoformat(from_dt)
-        if to_dt:
-            q["transaction_date"]["$lte"] = datetime.fromisoformat(to_dt)
-
-    # ---- AMOUNT FILTER ----
-    if min_amount is not None or max_amount is not None:
-        q["amount"] = {}
-        if min_amount is not None:
-            q["amount"]["$gte"] = float(min_amount)
-        if max_amount is not None:
-            q["amount"]["$lte"] = float(max_amount)
-
-    # ---- CATEGORY FILTER ----
-    if category and category != "all":
-        q["category"] = category      # UPDATED
-
-    # ---- STATUS FILTER ----
-    if status and status != "all":
-        q["status"] = status
-
-    sort_dir = -1 if desc else 1
-
-    cursor = db.transactions.find(q).sort(sort_by, sort_dir)
-    txns = await cursor.to_list(length=300)
-
-    for t in txns:
-        t["_id"] = str(t["_id"])
-
-    return {"transactions": txns}
+    user_id = current_user["id"]  # <-- Extract from token

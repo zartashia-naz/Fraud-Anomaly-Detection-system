@@ -26,14 +26,14 @@ async def signup(user: UserSignup, db=Depends(get_database)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user_data = user.model_dump()
-    user_data["password"] = hash_password(user.password)
+    new_user = user.model_dump(by_alias=False)
+    new_user["password"] = hash_password(user.password)
 
-    result = await db["users"].insert_one(user_data)
+    result = await db["users"].insert_one(new_user)
 
     return {
         "status": "success",
-        "message": "User registered successfully",
+        "message": "Account created successfully",
         "user_id": str(result.inserted_id)
     }
 
