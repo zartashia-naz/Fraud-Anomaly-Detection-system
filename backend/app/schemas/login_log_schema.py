@@ -1,30 +1,4 @@
-# from pydantic import BaseModel
-# from datetime import datetime
-# from typing import Optional, Dict
-
-# class LoginLogCreate(BaseModel):
-#     device_id: Optional[str] = None
-#     login_status: str = "success"
-
-
-# class LoginLogResponse(BaseModel):
-#     id: str
-#     user_id: str
-#     email: Optional[str] = None
-#     device_id: str
-#     ip_address: str
-#     location: Dict
-#     login_time: datetime
-#     previous_login_time: Optional[datetime] = None
-#     login_attempts: int
-#     is_anomaly: bool = False
-
-# ==================CLAUDE CODE BELOW===============
-
-
-# backend/app/schemas/login_log_schema.py
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any
 

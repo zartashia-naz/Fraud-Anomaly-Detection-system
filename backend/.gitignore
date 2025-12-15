@@ -41,7 +41,6 @@ data/
 datasets/
 raw_data/
 processed_data/
-models/
 checkpoints/
 runs/               # tensorboard
 mlruns/             # mlflow
@@ -82,14 +81,13 @@ credentials.json
 docker-compose.override.yml
 docker-compose.local.yml
 dist/
-node_modules/
+
 
 # Static analysis / caches
 .mypy_cache/
 .pyre/
 .pytype/
 .ruff_cache/
-.cache/
 
 # Documentation
 _build/
@@ -100,3 +98,6 @@ _build/
 *.orig
 # Windows trash
 $RECYCLE.BIN/
+
+__pycache__/
+*.pyc

@@ -1,14 +1,16 @@
-from fastapi import APIRouter
+# app/api/v1/routes/test_db_route.py
+from fastapi import APIRouter, Depends
 from app.db.mongodb import get_database
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/test",
+    tags=["Test"]
+)
 
-@router.get("/test-mongo")
-async def test_mongo():
+@router.get("/mongo")
+async def test_mongo(db=Depends(get_database)):
     try:
-        db = await get_database()
-
-        # Correct Motor async usage
+        # Motor async method — must await
         collections = await db.list_collection_names()
 
         return {
@@ -22,3 +24,4 @@ async def test_mongo():
             "status": "failed",
             "error": str(e)
         }
+
