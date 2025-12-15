@@ -20,7 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 # CREATE FASTAPI APP (only ONCE)
 # ---------------------------------------------------------------------
 
-app = FastAPI(title=settings.PROJECT_NAME)
+# Create FastAPI app
+app = FastAPI(
+    title="Fraud Detection System API",
+    description="Real-time fraud and anomaly detection system for login and transactions",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)
 
 # ---------------------------------------------------------------------
 # ROUTES (include BEFORE middleware for proper wrapping)
@@ -48,9 +55,14 @@ app.add_middleware(
 # STARTUP
 # ---------------------------------------------------------------------
 
+# Database Events
 @app.on_event("startup")
 async def startup_event():
+    """Initialize database connection on startup"""
+    logger.info("🚀 Starting Fraud Detection API...")
     await connect_to_mongo()
+    logger.info("✅ Database connected successfully")
+
 
     client = get_client()
     db = client[settings.MONGO_DB_NAME]
@@ -67,7 +79,10 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    """Close database connection on shutdown"""
+    logger.info("🛑 Shutting down Fraud Detection API...")
     await close_mongo_connection()
+    logger.info("✅ Database connection closed")
 
 # ---------------------------------------------------------------------
 # ROOT

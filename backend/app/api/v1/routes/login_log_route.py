@@ -6,13 +6,11 @@
 # from app.core.auth import get_current_user
 # from app.db.mongodb import get_database
 # from datetime import datetime
+# from bson import ObjectId
 
 # router = APIRouter(prefix="/login-logs", tags=["Login Logs"])
 
 
-# # -----------------------------
-# # POST → store new login record
-# # -----------------------------
 # @router.post("/", response_model=LoginLogResponse)
 # async def create_login_log(
 #     request: Request,
@@ -20,10 +18,11 @@
 #     current_user=Depends(get_current_user),
 #     db=Depends(get_database)
 # ):
+#     # Extract from JWT
+#     user_id = current_user["id"]
+#     email = current_user.get("email")   # <-- FIX: fetch email
 
-#     user_id = current_user["id"]   # ← extracted from JWT
-
-#     # Get IP & location
+#     # IP & location
 #     ip_address = get_client_ip(request)
 #     location = get_location_from_ip(ip_address)
 
@@ -34,13 +33,14 @@
 #     )
 #     previous_login_time = last_log["login_time"] if last_log else None
 
-#     # Count login attempts today
+#     # Count login attempts
 #     login_attempts = await db.login_logs.count_documents({"user_id": user_id})
 
-#     # Create model
+#     # Create log entry
 #     log = LoginLogModel(
 #         user_id=user_id,
-#         device_id=data.device_id,
+#         email=email,   # <-- FIXED
+#         device_id=data.device_id or "unknown-device",
 #         ip_address=ip_address,
 #         location=location,
 #         login_attempts=login_attempts + 1,
@@ -55,8 +55,10 @@
 #     )
 
 
+# ============CLAUDE CODE BELOW===============
 
 
+# backend/app/api/v1/routes/login_logs_route.py
 
 
 
@@ -68,7 +70,8 @@ from app.utils.ip_utils import get_client_ip
 from app.utils.geoip_utils import get_location_from_ip
 from app.core.auth import get_current_user
 from app.db.mongodb import get_database
-from datetime import datetime
+from typing import List, Optional
+from datetime import datetime, timedelta
 from bson import ObjectId
 
 # Redis DSA imports
@@ -82,10 +85,10 @@ from app.core.dsa.redis_dsa import (
 router = APIRouter(prefix="/login-logs", tags=["Login Logs"])
 
 
-@router.post("/", response_model=LoginLogResponse)
-async def create_login_log(
-    request: Request,
-    data: LoginLogCreate,
+@router.get("/my-logs")
+async def get_my_login_logs(
+    limit: int = Query(default=50, le=100),
+    skip: int = Query(default=0, ge=0),
     current_user=Depends(get_current_user),
     db=Depends(get_database)
 ):
@@ -136,8 +139,21 @@ async def create_login_log(
         id=str(result.inserted_id),
         **log.model_dump()
     )
+    
+    return {
+        "total_logins": total_logins,
+        "failed_attempts_30d": failed_logins,
+        "unique_devices": len(devices),
+        "unique_locations": len(locations),
+        "last_login": {
+            "time": last_login["login_time"] if last_login else None,
+            "device": last_login.get("device_name") if last_login else None,
+            "location": last_login.get("location", {}).get("city") if last_login else None
+        } if last_login else None
+    }
 
 
+# ========== ADMIN ENDPOINTS (Optional) ==========
 
 
 
