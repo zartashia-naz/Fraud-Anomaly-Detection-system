@@ -60,6 +60,7 @@
 
 
 
+# app/api/v1/routes/login_log_route.py
 from fastapi import APIRouter, Depends, Request, HTTPException
 from app.schemas.login_log_schema import LoginLogCreate, LoginLogResponse
 from app.db.models.login_log_model import LoginLogModel
@@ -69,6 +70,14 @@ from app.core.auth import get_current_user
 from app.db.mongodb import get_database
 from datetime import datetime
 from bson import ObjectId
+
+# Redis DSA imports
+from app.core.dsa.redis_dsa import (
+    push_recent_login,
+    record_login_attempt,
+    set_last_ip,
+    set_last_device
+)
 
 router = APIRouter(prefix="/login-logs", tags=["Login Logs"])
 
@@ -80,28 +89,36 @@ async def create_login_log(
     current_user=Depends(get_current_user),
     db=Depends(get_database)
 ):
-    # Extract from JWT
-    user_id = current_user["id"]
-    email = current_user.get("email")   # <-- FIX: fetch email
 
-    # IP & location
+    user_id = current_user["id"]
+    email = current_user.get("email")
+
+    # --- IP + Location ---
     ip_address = get_client_ip(request)
     location = get_location_from_ip(ip_address)
 
-    # Find last login
+    # --- Redis: Sliding Window Login Attempts ---
+    attempts_in_last_minute = record_login_attempt(user_id)
+
+    # --- Redis: Quick Access ---
+    set_last_ip(user_id, ip_address)
+    set_last_device(user_id, data.device_id or "unknown-device")
+
+    # --- Find last login in Mongo ---
     last_log = await db.login_logs.find_one(
         {"user_id": user_id},
         sort=[("_id", -1)]
     )
+
     previous_login_time = last_log["login_time"] if last_log else None
 
-    # Count login attempts
+    # Total log count
     login_attempts = await db.login_logs.count_documents({"user_id": user_id})
 
-    # Create log entry
+    # --- Create Login Log Object ---
     log = LoginLogModel(
         user_id=user_id,
-        email=email,   # <-- FIXED
+        email=email,
         device_id=data.device_id or "unknown-device",
         ip_address=ip_address,
         location=location,
@@ -109,12 +126,17 @@ async def create_login_log(
         previous_login_time=previous_login_time
     )
 
+    # Insert into MongoDB
     result = await db.login_logs.insert_one(log.model_dump())
+
+    # --- Write to Redis Recent Login Queue ---
+    push_recent_login(user_id, log.model_dump())
 
     return LoginLogResponse(
         id=str(result.inserted_id),
         **log.model_dump()
     )
+
 
 
 

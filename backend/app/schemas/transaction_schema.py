@@ -1,6 +1,9 @@
+# app/schemas/transaction_schema.py
+
 from pydantic import BaseModel
 
 class TransactionCreate(BaseModel):
     amount: float
-    transaction_type: str
-    channel: str
+    category: str  
+    description: str
+
